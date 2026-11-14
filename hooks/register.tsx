@@ -87,16 +87,16 @@ export const register: Register = on => {
       argumentHint: `[${[...LOOK_NAMES, CYCLE, OFF].join('|')}]`,
     })
     const picked = await $.store.get(PICK_KEY)
+    // A session often starts before the desktop client attaches, so "not drawn"
+    // here is expected: the theme stands and draws once a client attaches.
+    // Clear any status line an earlier version of this mod left behind.
+    $.ui.status(undefined)
 
     if (picked === CYCLE) {
       await showNextInCycle($)
       startCycle($, await cycleMinutes($))
     } else if (picked !== OFF) {
-      const notDrawn = await applyLook($, isLookName(picked) ? picked : DEFAULT_LOOK)
-
-      if (notDrawn !== undefined) {
-        $.ui.status(notDrawn)
-      }
+      await applyLook($, isLookName(picked) ? picked : DEFAULT_LOOK)
     }
 
     return next(e)
