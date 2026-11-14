@@ -100,27 +100,35 @@ function backdropScene(theme: ThemeSetArgs | undefined): string | undefined {
   return backdrop !== undefined && 'scene' in backdrop ? backdrop.scene : undefined
 }
 
-test('/scene cycle rotates through every look on a timer', async ($, on) => {
-  const clock = mock.clock(on)
-  const calls = engine(on)
+const START = { cwd: '/', surface: 'desktop', isInteractive: true } as const
 
+test('/scene cycle rotates through every look on the session heartbeat', async ($, on) => {
+  const clock = mock.clock(on)
+  const calls = engine(on, { look: 'off' })
+
+  await $.session.start(START)
   const result = await $.command.run({ command: 'scene', args: 'cycle', ...RUN })
 
   expect(result.text).toBe(`Rotating through all ${LOOK_NAMES.length} themes every 5 minutes, starting with Starship HUD.`)
   expect(calls.store.get('look')).toBe('cycle')
   expect(backdropScene(calls.sets.at(-1))).toBe('starship-hud')
 
-  await clock.advance(5 * MINUTE)
+  await clock.advance(4 * MINUTE)
+  expect(backdropScene(calls.sets.at(-1))).toBe('starship-hud')
+
+  await clock.advance(1 * MINUTE)
   expect(backdropScene(calls.sets.at(-1))).toBe('hacker-mainframe')
 
   await clock.advance((LOOK_NAMES.length - 1) * 5 * MINUTE)
+  expect(backdropScene(calls.sets.at(-1))).toBe('starship-hud')
   expect(calls.sets.map(backdropScene)).toEqual([...LOOK_NAMES, 'starship-hud'])
 })
 
 test('/scene cycle takes its own interval and refuses a bad one', async ($, on) => {
   const clock = mock.clock(on)
-  const calls = engine(on)
+  const calls = engine(on, { look: 'off' })
 
+  await $.session.start(START)
   const bad = await $.command.run({ command: 'scene', args: 'cycle 0', ...RUN })
   expect(bad.text?.startsWith('Minutes must be a whole number')).toBe(true)
   expect(calls.sets.length).toBe(0)
@@ -135,8 +143,9 @@ test('/scene cycle takes its own interval and refuses a bad one', async ($, on) 
 
 test('picking one look stops the rotation', async ($, on) => {
   const clock = mock.clock(on)
-  const calls = engine(on)
+  const calls = engine(on, { look: 'off' })
 
+  await $.session.start(START)
   await $.command.run({ command: 'scene', args: 'cycle', ...RUN })
   await $.command.run({ command: 'scene', args: 'arcade', ...RUN })
   const setsAfterPick = calls.sets.length
@@ -146,13 +155,26 @@ test('picking one look stops the rotation', async ($, on) => {
   expect(backdropScene(calls.sets.at(-1))).toBe('arcade')
 })
 
-test('a session started in cycle mode picks up where the rotation left off', async ($, on) => {
-  const clock = mock.clock(on)
-  const calls = engine(on, { look: 'cycle', 'cycle-next': 3, 'cycle-minutes': 5 })
+test('a session started in cycle mode shows the shared look, then follows the rotation', async ($, on) => {
+  const clock = mock.clock(on, { now: 2 * MINUTE })
+  const calls = engine(on, { look: 'cycle', 'cycle-next': 4, 'cycle-current': 'lava-lamp', 'cycle-at': 0, 'cycle-minutes': 5 })
 
-  await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
-  expect(backdropScene(calls.sets.at(-1))).toBe('lava-lamp')
+  await $.session.start(START)
+  expect(calls.sets.map(backdropScene)).toEqual(['lava-lamp'])
 
-  await clock.advance(5 * MINUTE)
+  await clock.advance(3 * MINUTE)
   expect(backdropScene(calls.sets.at(-1))).toBe('arcade')
+})
+
+test('a session follows a switch another session made', async ($, on) => {
+  const clock = mock.clock(on)
+  const calls = engine(on, { look: 'cycle', 'cycle-next': 1, 'cycle-current': 'starship-hud', 'cycle-at': 0, 'cycle-minutes': 5 })
+
+  await $.session.start(START)
+  expect(backdropScene(calls.sets.at(-1))).toBe('starship-hud')
+
+  calls.store.set('cycle-current', 'black-hole')
+  calls.store.set('cycle-at', clock.now())
+  await clock.advance(30_000)
+  expect(backdropScene(calls.sets.at(-1))).toBe('black-hole')
 })

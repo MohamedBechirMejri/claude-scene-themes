@@ -8,16 +8,28 @@ import { SCENES } from './scenes'
 const PICK_KEY = 'look'
 /** Store key holding the cycle's interval in minutes. */
 const CYCLE_MINUTES_KEY = 'cycle-minutes'
-/** Store key holding the index of the look the cycle shows next. */
+/** Store key holding the index of the look the cycle moves to next. */
 const CYCLE_NEXT_KEY = 'cycle-next'
+/** Store key holding the look the cycle shows now, shared by every open session. */
+const CYCLE_CURRENT_KEY = 'cycle-current'
+/** Store key holding when the cycle last moved on, in milliseconds since the epoch. */
+const CYCLE_AT_KEY = 'cycle-at'
 
 const OFF = 'off'
 const CYCLE = 'cycle'
 const DEFAULT_CYCLE_MINUTES = 5
 const MAX_CYCLE_MINUTES = 240
+/** How often each session checks whether the cycle is due to move on. */
+const HEARTBEAT_MS = 30_000
 
-/** The running rotation, if any. A module reload drops it, and `session.start` starts it again. */
-let cycleTimer: Timer | undefined
+/**
+ * The session's heartbeat. It starts at `session.start`, the one place work that
+ * outlives a dispatch may begin; a module reload drops it and `session.start`
+ * starts it again.
+ */
+let heartbeat: Timer | undefined
+/** The look this session last set, so a tick only repaints when the cycle moved. */
+let shownLook: LookName | undefined
 
 /**
  * Sets one look as the session's theme. Reports the first line that would stop
@@ -30,39 +42,49 @@ async function applyLook($: EngineInterface, name: LookName): Promise<string | u
   if (unpainted !== undefined) {
     $.ui.toast(`${look.label}: ${unpainted}`)
   }
+  shownLook = name
   const result = await $.theme.set(look.theme)
 
   return result.isDrawn ? undefined : result.reason
 }
 
-/** Shows the look the cycle is due to show, then moves the cycle on by one. */
-async function showNextInCycle($: EngineInterface): Promise<LookName> {
+/** Moves the shared cycle on to its next look and records when, without painting. */
+async function advanceCycle($: EngineInterface, now: number): Promise<LookName> {
   const stored = await $.store.get(CYCLE_NEXT_KEY)
   const index = typeof stored === 'number' && Number.isInteger(stored) ? stored % LOOK_NAMES.length : 0
   const name = LOOK_NAMES[index] ?? DEFAULT_LOOK
 
   await $.store.set(CYCLE_NEXT_KEY, (index + 1) % LOOK_NAMES.length)
-  await applyLook($, name)
+  await $.store.set(CYCLE_CURRENT_KEY, name)
+  await $.store.set(CYCLE_AT_KEY, now)
 
   return name
-}
-
-function stopCycle(): void {
-  cycleTimer?.cancel()
-  cycleTimer = undefined
-}
-
-function startCycle($: EngineInterface, minutes: number): void {
-  stopCycle()
-  cycleTimer = $.clock.every(minutes * 60_000, () => {
-    void showNextInCycle($)
-  })
 }
 
 async function cycleMinutes($: EngineInterface): Promise<number> {
   const stored = await $.store.get(CYCLE_MINUTES_KEY)
 
   return typeof stored === 'number' && stored >= 1 && stored <= MAX_CYCLE_MINUTES ? stored : DEFAULT_CYCLE_MINUTES
+}
+
+/**
+ * One heartbeat while the person has picked `cycle`: moves the shared cycle on
+ * when its interval has passed, then paints the cycle's look if this session
+ * isn't showing it yet. Any open session may move the cycle; all of them follow.
+ */
+async function tick($: EngineInterface): Promise<void> {
+  if ((await $.store.get(PICK_KEY)) !== CYCLE) {
+    return
+  }
+  const now = await $.clock.now()
+  const at = await $.store.get(CYCLE_AT_KEY)
+  const current = await $.store.get(CYCLE_CURRENT_KEY)
+  const isDue = typeof at !== 'number' || now - at >= (await cycleMinutes($)) * 60_000
+  const look = isDue || !isLookName(current) ? await advanceCycle($, now) : current
+
+  if (look !== shownLook) {
+    await applyLook($, look)
+  }
 }
 
 /** Reads `/scene cycle [minutes]`'s minutes: a whole number from 1 to 240, or undefined when invalid. */
@@ -86,15 +108,20 @@ export const register: Register = on => {
       description: 'Switch the custom theme, or rotate through all of them',
       argumentHint: `[${[...LOOK_NAMES, CYCLE, OFF].join('|')}]`,
     })
-    const picked = await $.store.get(PICK_KEY)
     // A session often starts before the desktop client attaches, so "not drawn"
     // here is expected: the theme stands and draws once a client attaches.
     // Clear any status line an earlier version of this mod left behind.
     $.ui.status(undefined)
 
+    heartbeat?.cancel()
+    heartbeat = $.clock.every(HEARTBEAT_MS, () => {
+      void tick($)
+    })
+
+    const picked = await $.store.get(PICK_KEY)
+
     if (picked === CYCLE) {
-      await showNextInCycle($)
-      startCycle($, await cycleMinutes($))
+      await tick($)
     } else if (picked !== OFF) {
       await applyLook($, isLookName(picked) ? picked : DEFAULT_LOOK)
     }
@@ -111,8 +138,8 @@ export const register: Register = on => {
       return { text: usage(current) }
     }
     if (wanted === OFF) {
-      stopCycle()
       await $.store.set(PICK_KEY, OFF)
+      shownLook = undefined
       await $.theme.clear()
 
       return { text: 'Custom theme off.' }
@@ -125,15 +152,14 @@ export const register: Register = on => {
       }
       await $.store.set(PICK_KEY, CYCLE)
       await $.store.set(CYCLE_MINUTES_KEY, minutes)
-      const shown = await showNextInCycle($)
-      startCycle($, minutes)
+      const shown = await advanceCycle($, await $.clock.now())
+      await applyLook($, shown)
 
       return { text: `Rotating through all ${LOOK_NAMES.length} themes every ${minutes} minutes, starting with ${LOOKS[shown].label}.` }
     }
     if (!isLookName(wanted)) {
       return { text: `No theme called "${wanted}". ${usage(current)}` }
     }
-    stopCycle()
     await $.store.set(PICK_KEY, wanted)
     const notDrawn = await applyLook($, wanted)
 
