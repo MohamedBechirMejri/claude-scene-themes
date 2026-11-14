@@ -1,0 +1,5 @@
+{
+  "name": "scene-themes",
+  "owner": { "name": "scene-themes" },
+  "plugins": [{ "name": "scene-themes", "source": "./" }]
+}
