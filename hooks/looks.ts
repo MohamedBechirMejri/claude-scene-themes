@@ -82,6 +82,34 @@ export const LOOKS = {
     roles: { accent: '#ffd60a', danger: '#ff5470', success: '#6ee86e', warning: '#ff9f1c', pro: '#c084fc' },
     glass: { blur: 12, tint: '#120a0a', opacity: 0.64 },
   }),
+  'black-hole': defineLook('black-hole', {
+    label: 'Black hole',
+    surfaces: { s0: '#0c0608', s1: '#140a0c', s2: '#1a0e10', s3: '#221214' },
+    text: { primary: '#fff1e6', secondary: '#dcc3b2', muted: '#bba190' },
+    roles: { accent: '#ffb020', danger: '#ff4d5e', success: '#5fd068', warning: '#ffc233', pro: '#d76bff' },
+    glass: { blur: 22, tint: '#0c0608', opacity: 0.6 },
+  }),
+  'night-city': defineLook('night-city', {
+    label: 'Night city',
+    surfaces: { s0: '#0b0714', s1: '#110b1d', s2: '#160f25', s3: '#1c132e' },
+    text: { primary: '#f6eeff', secondary: '#c9bde0', muted: '#a99bc3' },
+    roles: { accent: '#ff2fb3', danger: '#ff5470', success: '#4ade80', warning: '#fbbf24', pro: '#22d3ee' },
+    glass: { blur: 20, tint: '#0b0714', opacity: 0.62 },
+  }),
+  'orbital-station': defineLook('orbital-station', {
+    label: 'Orbital station',
+    surfaces: { s0: '#050b16', s1: '#08111f', s2: '#0b1628', s3: '#0f1c32' },
+    text: { primary: '#eaf4ff', secondary: '#b4c6dc', muted: '#93a8c1' },
+    roles: { accent: '#7dd3fc', danger: '#f87171', success: '#4ade80', warning: '#fbbf24', pro: '#a78bfa' },
+    glass: { blur: 22, tint: '#050b16', opacity: 0.58 },
+  }),
+  'abyss-jellyfish': defineLook('abyss-jellyfish', {
+    label: 'Abyss jellyfish',
+    surfaces: { s0: '#070b1c', s1: '#0b1126', s2: '#0e1530', s3: '#131b3a' },
+    text: { primary: '#eef0ff', secondary: '#b8bde0', muted: '#989ec8' },
+    roles: { accent: '#a855f7', danger: '#ff5c7a', success: '#4ade80', warning: '#fbbf24', pro: '#f472b6' },
+    glass: { blur: 22, tint: '#070b1c', opacity: 0.58 },
+  }),
 } satisfies Record<string, Look>
 
 export type LookName = keyof typeof LOOKS

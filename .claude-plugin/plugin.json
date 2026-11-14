@@ -1,5 +1,5 @@
 {
   "name": "scene-themes",
-  "version": "0.1.1",
-  "description": "Five dark themes with animated backdrops, switched with /theme"
+  "version": "0.2.0",
+  "description": "Nine dark themes with animated backdrops, switched or rotated with /scene"
 }

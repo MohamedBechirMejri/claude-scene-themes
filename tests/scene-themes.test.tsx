@@ -106,14 +106,14 @@ test('/scene cycle rotates through every look on a timer', async ($, on) => {
 
   const result = await $.command.run({ command: 'scene', args: 'cycle', ...RUN })
 
-  expect(result.text).toBe('Rotating through all 5 themes every 5 minutes, starting with Starship HUD.')
+  expect(result.text).toBe(`Rotating through all ${LOOK_NAMES.length} themes every 5 minutes, starting with Starship HUD.`)
   expect(calls.store.get('look')).toBe('cycle')
   expect(backdropScene(calls.sets.at(-1))).toBe('starship-hud')
 
   await clock.advance(5 * MINUTE)
   expect(backdropScene(calls.sets.at(-1))).toBe('hacker-mainframe')
 
-  await clock.advance(4 * 5 * MINUTE)
+  await clock.advance((LOOK_NAMES.length - 1) * 5 * MINUTE)
   expect(calls.sets.map(backdropScene)).toEqual([...LOOK_NAMES, 'starship-hud'])
 })
 

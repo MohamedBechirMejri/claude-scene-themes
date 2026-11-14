@@ -1,6 +1,6 @@
 # scene-themes
 
-Five dark themes with animated backdrops for Claude Code on desktop, switched with one command.
+Nine dark themes with animated backdrops for Claude Code on desktop, switched or rotated with one command.
 
 | Theme | Backdrop |
 | --- | --- |
@@ -9,6 +9,10 @@ Five dark themes with animated backdrops for Claude Code on desktop, switched wi
 | `mech-cockpit` | Hazard-striped panels, blinking lights and turning reticles |
 | `lava-lamp` | Glowing liquid blobs drifting slowly |
 | `arcade` | Pixel sprites and twinkling stars over scanlines |
+| `black-hole` | A spinning accretion disk bending light around the event horizon |
+| `night-city` | A neon megacity with sweeping searchlights, flying cars and rain |
+| `orbital-station` | A ring station turning above a blue planet, ships streaking past at warp |
+| `abyss-jellyfish` | Glowing jellyfish pulsing and drifting in the deep ocean |
 
 ## Usage
 
@@ -42,6 +46,8 @@ In the desktop app: click + next to the prompt box, then Plugins, Add marketplac
 Requires Claude Code 2.1.323 or newer.
 
 ## Development
+
+The painted backgrounds and sprites live in `assets/` as JPEGs and are embedded into the scenes (a scene loads nothing from outside itself). After changing one, run `bun scripts/embed-assets.ts`. Each scene must stay under 131,072 characters, images included; the tests check this.
 
 ```
 claude plugin validate .
